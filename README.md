@@ -20,6 +20,41 @@ GemSync Manager 是一个本地学习工具，用来把 Gemini 聊天记录和 P
 - LibreOffice，只在需要转换 PPT/PPTX 时使用
 - 一个可以正常登录 Gemini 的账号
 
+## 一键配置环境
+
+推荐先运行环境配置脚本：
+
+```powershell
+.\scripts\setup-env.ps1
+```
+
+这个脚本会自动做这些事：
+
+1. 检测 Node.js、Python、Poppler、LibreOffice 和 Chrome。
+2. 已经安装的环境会直接复用。
+3. 缺少的环境会提示你是否用 `winget` 安装。
+4. 自动写入 GemSync 需要的环境变量。
+5. 生成本地配置文件 `.gemsync.local.ps1`。
+6. 自动运行 `npm install` 安装项目依赖。
+
+如果你想不再逐个确认，直接安装缺少的环境：
+
+```powershell
+.\scripts\setup-env.ps1 -InstallMissing
+```
+
+如果你只想检查，不安装也不写入环境变量：
+
+```powershell
+.\scripts\setup-env.ps1 -CheckOnly
+```
+
+脚本生成的 `.gemsync.local.ps1` 只保存在你的电脑上，已经被 `.gitignore` 忽略，不会上传到 GitHub。
+
+## 手动配置环境
+
+如果你不想用上面的脚本，也可以手动安装依赖。
+
 安装 Node 依赖：
 
 ```powershell
@@ -33,6 +68,7 @@ $env:GEMSYNC_NODE = "C:\Path\To\node.exe"
 $env:GEMSYNC_PYTHON = "C:\Path\To\python.exe"
 $env:GEMSYNC_PDFTOPPM = "C:\Path\To\pdftoppm.exe"
 $env:GEMSYNC_PDFINFO = "C:\Path\To\pdfinfo.exe"
+$env:GEMSYNC_CHROME = "C:\Path\To\chrome.exe"
 ```
 
 ## 启动管理器
@@ -91,6 +127,7 @@ http://127.0.0.1:5188
 | `GEMSYNC_PYTHON` | PPT 转截图辅助脚本使用的 Python，默认是 `python`。 |
 | `GEMSYNC_PDFINFO` | `pdfinfo` 的路径，默认是 `pdfinfo`。 |
 | `GEMSYNC_PDFTOPPM` | `pdftoppm` 的路径，默认是 `pdftoppm`。 |
+| `GEMSYNC_CHROME` | Chrome 程序路径，默认会尝试找常见安装位置。 |
 | `GEMSYNC_AUTOMATION_SCRIPTS` | 自动化脚本目录，默认是 `<repo>\scripts`。 |
 | `GEMSYNC_DEFAULT_WORKSPACE` | 可选，默认课程文件夹。 |
 | `GEMSYNC_DEFAULT_PROMPT` | 可选，默认重复发送给 Gemini 的提示词。 |

@@ -1,6 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$LocalEnv = Join-Path $Root '.gemsync.local.ps1'
+if (Test-Path -LiteralPath $LocalEnv) {
+  . $LocalEnv
+}
+
 $Node = if ($env:GEMSYNC_NODE) { $env:GEMSYNC_NODE } else { 'node' }
 $Port = if ($env:GEMSYNC_MANAGER_PORT) { [int]$env:GEMSYNC_MANAGER_PORT } else { 5188 }
 $Url = "http://127.0.0.1:$Port"

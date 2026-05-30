@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-env.ps1",
     "start": "node server.mjs",
     "check": "node --check server.mjs"
   },

@@ -18,6 +18,7 @@ chrome-gemini-automation-profile/
 /gemini_ppt_one_by_one.mjs
 
 # Local environment overrides
+.gemsync.local.ps1
 .env
 .env.*
 !.env.example

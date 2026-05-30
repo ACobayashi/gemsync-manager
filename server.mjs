@@ -14,6 +14,11 @@ const NODE = process.env.GEMSYNC_NODE || process.execPath || "node";
 const PYTHON = process.env.GEMSYNC_PYTHON || "python";
 const PDFINFO = process.env.GEMSYNC_PDFINFO || "pdfinfo";
 const PDFTOPPM = process.env.GEMSYNC_PDFTOPPM || "pdftoppm";
+const CHROME = process.env.GEMSYNC_CHROME || firstExisting([
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  path.join(process.env.LOCALAPPDATA || "", "Google\\Chrome\\Application\\chrome.exe"),
+]) || "chrome.exe";
 const AUTOMATION_SCRIPTS_ROOT = process.env.GEMSYNC_AUTOMATION_SCRIPTS || path.join(ROOT, "scripts");
 const LEGACY_SKILL_ROOT = process.env.GEMSYNC_SKILL_ROOT || "";
 const DEFAULT_EXTENSION_ROOT = path.join(ROOT, "extension");
@@ -36,6 +41,10 @@ const MIME = new Map([
 
 const jobs = new Map();
 let jobSeq = 0;
+
+function firstExisting(candidates) {
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || "";
+}
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, {
@@ -809,8 +818,7 @@ async function startChromeDebug(body) {
   }
   const workspace = path.resolve(body.workspace || ROOT);
   const profile = path.join(workspace, "chrome-gemini-automation-profile");
-  const chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-  spawn(chrome, [
+  spawn(CHROME, [
     "--remote-debugging-port=9222",
     `--user-data-dir=${profile}`,
     "--profile-directory=Default",
@@ -901,6 +909,7 @@ async function handleApi(req, res, url) {
         pythonPath: PYTHON,
         pdfinfoPath: PDFINFO,
         pdftoppmPath: PDFTOPPM,
+        chromePath: CHROME,
       },
       extension,
       jobs: [...jobs.values()].map(publicJob),
