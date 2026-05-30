@@ -1,5 +1,6 @@
 (() => {
   const HOST_ID = "codex-gemini-reading-marker";
+  const CONTENT_VERSION = "1.7.2";
   const MIN_SCROLL_DELTA = 80;
   const SHOW_TOP_AFTER = 280;
   const STORAGE_PREFIX = "gemini-reading-marker:";
@@ -10,8 +11,26 @@
   const OLDER_LOAD_NUDGE_PX = 180;
   const SYNC_TOP_MARGIN_PX = 18;
   const GEMSYNC_PENDING_DOCK_KEY = "gemsync:pending-pdf-dock";
+  const STALE_LOCAL_PANEL_RE = /^https?:\/\/(?:127\.0\.0\.1|localhost):5177(?:\/|$)/i;
 
-  if (document.getElementById(HOST_ID)) return;
+  const removeExistingInstance = () => {
+    document.getElementById(HOST_ID)?.remove();
+    document.getElementById(`${HOST_ID}-pdf-dock`)?.remove();
+    document.getElementById(`${HOST_ID}-pdf-style`)?.remove();
+    document.documentElement.classList.remove(`${HOST_ID}-pdf-open`);
+  };
+
+  const existingHost = document.getElementById(HOST_ID);
+  const existingDockFrame = document.querySelector(`#${HOST_ID}-pdf-dock iframe`);
+  const existingVersion = existingHost?.dataset?.gemsyncVersion || "";
+  const hasStaleLocalPanel = !!existingDockFrame?.src && STALE_LOCAL_PANEL_RE.test(existingDockFrame.src);
+  if (existingHost) {
+    if (existingVersion !== CONTENT_VERSION || hasStaleLocalPanel) {
+      removeExistingInstance();
+    } else {
+      return;
+    }
+  }
 
   let chromeContextInvalidated = false;
 
@@ -123,6 +142,7 @@
 
   const host = document.createElement("div");
   host.id = HOST_ID;
+  host.dataset.gemsyncVersion = CONTENT_VERSION;
   const shadow = host.attachShadow({ mode: "open" });
 
   const style = document.createElement("style");
