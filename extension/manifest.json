@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Gemini Reading Marker",
   "description": "Adds Gemini reading markers and PDF page sync.",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "permissions": [
     "storage",
     "tabs"

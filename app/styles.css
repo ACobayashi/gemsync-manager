@@ -720,6 +720,10 @@ button.quiet:hover {
 .job-list {
   display: grid;
   gap: 8px;
+  max-height: clamp(280px, 46vh, 620px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .job {

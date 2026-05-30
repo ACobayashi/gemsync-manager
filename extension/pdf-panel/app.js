@@ -920,7 +920,7 @@ async function initSubjects() {
   const response = await fetch("./subjects.json", { cache: "no-store" });
   if (!response.ok) throw new Error(`学科列表读取失败：${response.status}`);
   const subjectsConfig = await response.json();
-  state.subjects = subjectsConfig.subjects || [];
+  state.subjects = uniqueSubjects(subjectsConfig.subjects || []);
 
   for (const subject of state.subjects) {
     const option = document.createElement("option");
@@ -988,6 +988,28 @@ async function initSubjects() {
   const deckId = hash.get("deck") || "";
   const page = Number(hash.get("page") || 1);
   await loadSubject(subjectId, { deckId, initialPage: page });
+}
+
+function subjectTitleKey(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
+function uniqueSubjects(subjects) {
+  const result = [];
+  const seenIds = new Set();
+  const seenTitles = new Set();
+  for (const subject of subjects) {
+    const titleKey = subjectTitleKey(subject.title);
+    if ((subject.id && seenIds.has(subject.id)) || (titleKey && seenTitles.has(titleKey))) continue;
+    result.push(subject);
+    if (subject.id) seenIds.add(subject.id);
+    if (titleKey) seenTitles.add(titleKey);
+  }
+  return result;
 }
 
 initSubjects().catch((error) => {

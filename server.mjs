@@ -814,8 +814,8 @@ async function buildPluginSubject(body) {
   const subjectsConfig = await readJson(subjectsPath, { version: 1, defaultSubject: requestedSubjectId, subjects: [] });
   const existingSubjects = Array.isArray(subjectsConfig.subjects) ? subjectsConfig.subjects : [];
   const requestedTitleKey = subjectTitleKey(title);
-  const existingSubject = existingSubjects.find((item) => item.id === requestedSubjectId)
-    || existingSubjects.find((item) => subjectTitleKey(item.title) === requestedTitleKey);
+  const existingSubject = existingSubjects.find((item) => subjectTitleKey(item.title) === requestedTitleKey)
+    || existingSubjects.find((item) => item.id === requestedSubjectId);
   const subjectId = existingSubject?.id || requestedSubjectId;
   const subjectRoot = path.join(extensionRoot, "pdf-panel", "subjects", subjectId);
   const pdfDir = path.join(subjectRoot, "pdfs");
