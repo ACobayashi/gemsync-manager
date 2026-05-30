@@ -50,8 +50,7 @@
   };
 
   const isGemSyncFrameOrigin = (origin) => {
-    return String(origin || "").startsWith(GEMSYNC_SERVER)
-      || (!!getExtensionOrigin() && origin === getExtensionOrigin());
+    return !!getExtensionOrigin() && origin === getExtensionOrigin();
   };
 
   const getGemSyncPanelUrl = ({ subjectId = "", deckId = "deck01", page = 1 } = {}) => {
@@ -62,7 +61,7 @@
     if (extensionUrl) {
       return `${extensionUrl}#subject=${safeSubject}&deck=${safeDeck}&page=${safePage}&embed=1`;
     }
-    return `${GEMSYNC_SERVER}/#deck=${safeDeck}&page=${safePage}&embed=1`;
+    return "";
   };
 
   const getGemSyncConfigs = async () => {
@@ -89,9 +88,7 @@
       return configs;
     }
 
-    const response = await fetch(`${GEMSYNC_SERVER}/api/config`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return [{ subject: { id: "", title: "" }, config: await response.json() }];
+    throw new Error("PDF 面板配置只能从扩展内读取。请刷新 Gemini 页面，或者在 chrome://extensions 里重新加载 GemSync 插件。");
   };
 
   const readLocalJson = (key) => {
@@ -1792,13 +1789,23 @@
       title.textContent = deck?.title ? `PDF: ${deck.title}` : "PDF";
     }
     if (iframe) {
-      iframe.src = pdfDockUrlFor(deck, page);
+      const panelUrl = pdfDockUrlFor(deck, page);
+      if (!panelUrl) {
+        showToast("PDF 面板地址不可用。请刷新 Gemini，或重载 GemSync 插件。");
+        return;
+      }
+      iframe.src = panelUrl;
     }
   };
 
   const openPdfDock = async (options = {}) => {
     const deck = await getGemSyncDeck(options.deckId || "", options.subjectId || "");
     const page = Math.max(1, Number(options.page) || 1);
+    const panelUrl = pdfDockUrlFor(deck, page);
+    if (!panelUrl) {
+      showToast("PDF 面板地址不可用。请刷新 Gemini，或重载 GemSync 插件。");
+      return;
+    }
 
     if (pdfDock) {
       updatePdfDockDeck(deck, page);
@@ -1832,7 +1839,7 @@
     close.title = "Close PDF panel";
 
     const iframe = document.createElement("iframe");
-    iframe.src = pdfDockUrlFor(deck, page);
+    iframe.src = panelUrl;
     iframe.title = "GemSync PDF";
 
     refresh.addEventListener("click", () => {

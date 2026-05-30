@@ -636,6 +636,80 @@ function findPdfForDeck(pdfs, deck, index) {
   return pdfs[index] || "";
 }
 
+function subjectTitleKey(input) {
+  return String(input || "")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
+function configPathForSubject(extensionRoot, subject) {
+  const configUrl = String(subject?.configUrl || "").replace(/^\.\//, "");
+  if (!configUrl) return "";
+  const file = path.resolve(path.join(extensionRoot, "pdf-panel"), configUrl);
+  const subjectRoot = path.resolve(path.join(extensionRoot, "pdf-panel", "subjects"));
+  const relative = path.relative(subjectRoot, file);
+  return relative && !relative.startsWith("..") && !path.isAbsolute(relative) ? file : "";
+}
+
+function comparablePluginConfig(config) {
+  return {
+    course: subjectTitleKey(config?.course || ""),
+    decks: (config?.decks || []).map((deck) => ({
+      id: deck.id || "",
+      title: String(deck.title || "").trim(),
+      pdfUrl: deck.pdfUrl || "",
+      geminiUrl: deck.geminiUrl || "",
+      conversationId: deck.conversationId || "",
+      totalPages: Number(deck.totalPages || 0),
+    })),
+  };
+}
+
+function samePluginConfig(a, b) {
+  return JSON.stringify(comparablePluginConfig(a)) === JSON.stringify(comparablePluginConfig(b));
+}
+
+function mergeSubjectEntry(subjects, entry) {
+  const next = [];
+  const removed = [];
+  const seenIds = new Set();
+  const seenTitles = new Set();
+  const entryTitleKey = subjectTitleKey(entry.title);
+  let inserted = false;
+
+  for (const item of subjects || []) {
+    const itemTitleKey = subjectTitleKey(item.title);
+    const sameEntry = item.id === entry.id || (entryTitleKey && itemTitleKey === entryTitleKey);
+    const duplicate = seenIds.has(item.id) || (itemTitleKey && seenTitles.has(itemTitleKey));
+
+    if (sameEntry) {
+      if (!inserted) {
+        next.push({ ...item, ...entry });
+        inserted = true;
+        seenIds.add(entry.id);
+        if (entryTitleKey) seenTitles.add(entryTitleKey);
+      } else {
+        removed.push(item.id || item.title || "");
+      }
+      continue;
+    }
+
+    if (duplicate) {
+      removed.push(item.id || item.title || "");
+      continue;
+    }
+
+    next.push(item);
+    if (item.id) seenIds.add(item.id);
+    if (itemTitleKey) seenTitles.add(itemTitleKey);
+  }
+
+  if (!inserted) next.push(entry);
+  return { subjects: next, removed };
+}
+
 async function ensureConversationFolders(screenshotRoot, decks, progress, conversationFolders) {
   if (!fs.existsSync(screenshotRoot) || !decks.length) return conversationFolders;
 
@@ -685,7 +759,7 @@ async function buildPluginSubject(body) {
   const workspace = path.resolve(body.workspace || "");
   const extensionRoot = DEFAULT_EXTENSION_ROOT;
   const title = normalizeTitle(body.title, folderTitleFromPath(workspace) || DEFAULT_SUBJECT_TITLE);
-  const subjectId = sanitizeId(body.subjectId, title);
+  const requestedSubjectId = sanitizeId(body.subjectId, title);
   if (!fs.existsSync(workspace)) throw new Error("学科文件夹不存在");
   if (!fs.existsSync(extensionRoot)) throw new Error("插件目录不存在");
 
@@ -707,11 +781,18 @@ async function buildPluginSubject(body) {
   if (!decks.length) throw new Error("没有找到 PDF 或截图 deck");
   conversationFolders = await ensureConversationFolders(screenshotRoot, decks, progress, conversationFolders);
 
+  const subjectsPath = path.join(extensionRoot, "pdf-panel", "subjects.json");
+  const subjectsConfig = await readJson(subjectsPath, { version: 1, defaultSubject: requestedSubjectId, subjects: [] });
+  const existingSubjects = Array.isArray(subjectsConfig.subjects) ? subjectsConfig.subjects : [];
+  const requestedTitleKey = subjectTitleKey(title);
+  const existingSubject = existingSubjects.find((item) => item.id === requestedSubjectId)
+    || existingSubjects.find((item) => subjectTitleKey(item.title) === requestedTitleKey);
+  const subjectId = existingSubject?.id || requestedSubjectId;
   const subjectRoot = path.join(extensionRoot, "pdf-panel", "subjects", subjectId);
   const pdfDir = path.join(subjectRoot, "pdfs");
-  await fsp.mkdir(pdfDir, { recursive: true });
 
   const configDecks = [];
+  const pdfCopies = [];
   for (let index = 0; index < decks.length; index += 1) {
     const deck = decks[index];
     const deckId = deckIdFromNumber(deck.deckNumber || index + 1);
@@ -721,7 +802,7 @@ async function buildPluginSubject(body) {
       continue;
     }
     const targetPdf = path.join(pdfDir, `${deckId}.pdf`);
-    await fsp.copyFile(sourcePdf, targetPdf);
+    pdfCopies.push({ sourcePdf, targetPdf });
     const totalPages = deck.slides || await countPdfPages(sourcePdf);
     const geminiUrl = withZh(findConversationForDeck(deck, index, progress, conversationFolders));
     configDecks.push({
@@ -734,36 +815,49 @@ async function buildPluginSubject(body) {
     });
   }
 
+  if (!configDecks.length) throw new Error("没有可写入插件的 PDF");
+
   const config = {
     version: 1,
     course: title,
     pagePrompt: DEFAULT_PROMPT,
     decks: configDecks,
   };
-  await writeJson(path.join(subjectRoot, "config.json"), config);
-
-  const subjectsPath = path.join(extensionRoot, "pdf-panel", "subjects.json");
-  const subjectsConfig = await readJson(subjectsPath, { version: 1, defaultSubject: subjectId, subjects: [] });
+  const configPath = path.join(subjectRoot, "config.json");
+  const existingConfigPath = configPathForSubject(extensionRoot, existingSubject);
+  const existingConfig = existingConfigPath ? await readJson(existingConfigPath, null) : null;
+  const alreadyImported = !!existingConfig && samePluginConfig(existingConfig, config);
   const entry = {
     id: subjectId,
     title,
     configUrl: `./subjects/${subjectId}/config.json`,
   };
-  const subjects = (subjectsConfig.subjects || []).filter((item) => item.id !== subjectId);
-  subjects.push(entry);
+  const merged = mergeSubjectEntry(existingSubjects, entry);
   subjectsConfig.version = 1;
-  subjectsConfig.defaultSubject = subjectsConfig.defaultSubject || subjectId;
-  subjectsConfig.subjects = subjects;
+  if (!subjectsConfig.defaultSubject || subjectsConfig.defaultSubject === requestedSubjectId || !merged.subjects.some((item) => item.id === subjectsConfig.defaultSubject)) {
+    subjectsConfig.defaultSubject = subjectId;
+  }
+  subjectsConfig.subjects = merged.subjects;
   await writeJson(subjectsPath, subjectsConfig);
+
+  if (!alreadyImported) {
+    await fsp.mkdir(pdfDir, { recursive: true });
+    for (const item of pdfCopies) await fsp.copyFile(item.sourcePdf, item.targetPdf);
+    await writeJson(configPath, config);
+  }
 
   return {
     subjectId,
+    requestedSubjectId,
     title,
     subjectRoot,
-    configPath: path.join(subjectRoot, "config.json"),
+    configPath,
     conversationFoldersPath: path.join(screenshotRoot, "conversation_folders.json"),
     decks: configDecks.length,
     missingGeminiUrls: configDecks.filter((deck) => !deck.geminiUrl).length,
+    alreadyImported,
+    reusedExistingSubject: !!existingSubject && existingSubject.id !== requestedSubjectId,
+    removedDuplicateSubjects: merged.removed,
   };
 }
 
@@ -771,7 +865,16 @@ async function updatePluginJob(body) {
   const job = makeJob("plugin", "更新插件学科库");
   try {
     const result = await buildPluginSubject({ ...body, job });
-    appendJob(job, `UPDATED ${result.configPath}\n`);
+    if (result.alreadyImported) {
+      appendJob(job, `ALREADY_IMPORTED ${result.title} -> ${result.subjectId}\n`);
+    } else if (result.reusedExistingSubject) {
+      appendJob(job, `UPDATED_EXISTING ${result.title} -> ${result.subjectId}\n`);
+    } else {
+      appendJob(job, `UPDATED ${result.configPath}\n`);
+    }
+    if (result.removedDuplicateSubjects?.length) {
+      appendJob(job, `DEDUPED subjects: ${result.removedDuplicateSubjects.join(", ")}\n`);
+    }
     appendJob(job, `DECKS ${result.decks}\n`);
     if (result.missingGeminiUrls) appendJob(job, `WARN missing Gemini URLs: ${result.missingGeminiUrls}\n`);
     job.status = "complete";

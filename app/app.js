@@ -486,6 +486,18 @@ async function clearSelectedLog() {
   setStatus("当前任务日志已清空");
 }
 
+async function writePluginConfig() {
+  const job = await startJob("/api/jobs/plugin");
+  const result = job.result || {};
+  if (result.alreadyImported) {
+    setStatus(`“${result.title}”已经写入过插件，这次没有重复添加。`);
+  } else if (result.reusedExistingSubject) {
+    setStatus(`已更新已有的“${result.title}”，没有新增重复项。`);
+  } else {
+    setStatus(`已写入插件：${result.title || "当前学科"}`);
+  }
+}
+
 elements.workspace.addEventListener("change", () => {
   autoFillSubjectFromWorkspace();
   clearSummary();
@@ -510,7 +522,7 @@ elements.prepare.addEventListener("click", () => startJob("/api/jobs/prepare").c
 elements.chrome.addEventListener("click", () => startChrome().catch((error) => setStatus(error.message)));
 elements.runGemini.addEventListener("click", () => startJob("/api/jobs/gemini").catch((error) => setStatus(error.message)));
 elements.resetProgress.addEventListener("click", () => resetProgress().catch((error) => setStatus(error.message)));
-elements.updatePlugin.addEventListener("click", () => startJob("/api/jobs/plugin").catch((error) => setStatus(error.message)));
+elements.updatePlugin.addEventListener("click", () => writePluginConfig().catch((error) => setStatus(error.message)));
 elements.stopJob.addEventListener("click", () => stopSelectedJob().catch((error) => setStatus(error.message)));
 elements.clearLog.addEventListener("click", () => clearSelectedLog().catch((error) => setStatus(error.message)));
 
