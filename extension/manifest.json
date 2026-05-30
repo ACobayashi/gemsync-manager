@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Reading Marker",
+  "description": "Adds Gemini reading markers and PDF page sync.",
+  "version": "1.7.0",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "pdf-panel/**"
+      ],
+      "matches": [
+        "https://gemini.google.com/*"
+      ]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1:*/*",
+        "http://localhost:*/*"
+      ],
+      "js": [
+        "app-bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

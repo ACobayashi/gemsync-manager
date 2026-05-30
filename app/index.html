@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GemSync Manager</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">GS</div>
+        <div>
+          <strong>GemSync Manager</strong>
+          <span>把课程文件夹导入 Gemini + PDF 同步插件</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div id="status" class="status">准备就绪</div>
+        <button id="refreshState" type="button">刷新状态</button>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="panel setup">
+        <div class="panel-head">
+          <div>
+            <h1>课程来源</h1>
+            <p>先选这门课所在的文件夹。显示名称会自动取文件夹名，也可以手动改。</p>
+          </div>
+        </div>
+
+        <div class="field-stack">
+          <label>
+            <span>学科文件夹</span>
+            <div class="path-picker">
+              <input id="workspace" placeholder="例如 D:\Courses\Database" />
+              <button id="pickWorkspace" type="button">选择</button>
+            </div>
+          </label>
+
+          <input id="subjectId" type="hidden" />
+
+          <label>
+            <span>显示名称</span>
+            <input id="subjectTitle" placeholder="数据库" />
+          </label>
+        </div>
+
+        <div class="hint-box">
+          插件已经和这个程序绑定。换学科时，只需要重新选择“学科文件夹”。
+        </div>
+
+        <div class="settings-box">
+          <div class="settings-head">
+            <strong>自动提问设置</strong>
+            <span>启动 Gemini 自动问时使用</span>
+          </div>
+          <div class="settings-grid">
+            <label>
+              <span>主模型</span>
+              <select id="modelSelect">
+                <option value="pro">Gemini Pro</option>
+                <option value="flash">Gemini Flash</option>
+                <option value="flash-lite">Gemini Flash-Lite</option>
+              </select>
+            </label>
+            <label>
+              <span>Pro 额度用完后</span>
+              <select id="proFallback">
+                <option value="flash">继续用 Flash</option>
+                <option value="flash-lite">继续用 Flash-Lite</option>
+                <option value="wait">等待 Pro 恢复</option>
+                <option value="stop">停止任务</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>重复发送的提示词</span>
+            <textarea id="promptText" rows="3">请详细讲解这一面PPT</textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel workflow">
+        <div class="panel-head">
+          <div>
+            <h2>操作流程</h2>
+            <p>按顺序执行。标了“可跳过”的步骤，只在需要时点。</p>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item" data-step="scan">
+            <div class="step-index">1</div>
+            <div class="step-copy">
+              <div class="step-title"><strong>扫描文件夹</strong><span class="step-tag required">先做</span></div>
+              <span>先确认这门课有多少 PDF、PPT、截图和 Gemini 对话。</span>
+            </div>
+            <button id="scan" type="button" class="primary">扫描文件夹</button>
+          </div>
+
+          <div class="step-item" data-step="prepare">
+            <div class="step-index">2</div>
+            <div class="step-copy">
+              <div class="step-title"><strong>准备截图</strong><span class="step-tag optional">看情况</span></div>
+              <span>从 PPT 或 PDF 生成逐页截图。没有截图时，先做这一步。</span>
+            </div>
+            <button id="prepare" type="button">准备截图</button>
+          </div>
+
+          <div class="step-item" data-step="chrome">
+            <div class="step-index">3</div>
+            <div class="step-copy">
+              <div class="step-title"><strong>打开 Gemini 标签页</strong><span class="step-tag once">只需一次</span></div>
+              <span>优先在已有自动化 Chrome 里新开标签页。第一次如果端口没开，才会启动自动化 Chrome。</span>
+            </div>
+            <button id="chrome" type="button">打开标签页</button>
+          </div>
+
+          <div class="step-item" data-step="gemini">
+            <div class="step-index">4</div>
+            <div class="step-copy">
+              <div class="step-title"><strong>启动 Gemini 自动问</strong><span class="step-tag long">长任务</span></div>
+              <span>需要先有截图 Deck。只有 PDF 时不能自动上传截图提问。</span>
+            </div>
+            <div class="step-actions">
+              <button id="resetProgress" type="button" class="quiet">重置进度</button>
+              <button id="runGemini" type="button">启动自动问</button>
+            </div>
+          </div>
+
+          <div class="step-item final-step" data-step="plugin">
+            <div class="step-index">5</div>
+            <div class="step-copy">
+              <div class="step-title"><strong>写入插件</strong><span class="step-tag final">最后一步</span></div>
+              <span>把 PDF、Gemini 对话链接和页数写进插件。写完后重新加载 Chrome 扩展。</span>
+            </div>
+            <button id="updatePlugin" type="button" class="primary">写入插件</button>
+          </div>
+        </div>
+        <div id="workflowHint" class="workflow-hint">先选择或确认学科文件夹，然后扫描。</div>
+      </section>
+
+      <section class="panel summary">
+        <div class="panel-head">
+          <div>
+            <h2>扫描结果</h2>
+            <p>这里看文件和对话有没有对上。数量不对时，先别启动自动问。</p>
+          </div>
+        </div>
+        <div id="summaryCards" class="cards"></div>
+        <div id="details" class="details"></div>
+      </section>
+
+      <section class="panel jobs">
+        <div class="panel-head">
+          <div>
+            <h2>任务</h2>
+            <p>截图转换、Gemini 自动提问、写入插件都会留在这里。</p>
+          </div>
+        </div>
+        <div id="jobs" class="job-list"></div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="panel-head">
+          <div>
+            <h2>日志</h2>
+            <p>任务卡住时先看这里。长时间不动可以停止当前任务。</p>
+          </div>
+          <div class="log-actions">
+            <button id="clearLog" type="button">清空日志</button>
+            <button id="stopJob" type="button" disabled>停止当前任务</button>
+          </div>
+        </div>
+        <pre id="log">还没有任务日志。</pre>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

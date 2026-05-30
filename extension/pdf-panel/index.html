@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GemSync</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="brand">
+        <strong>GemSync</strong>
+        <span id="deckTitle">算法导论</span>
+      </div>
+
+      <select id="subjectSelect" aria-label="选择学科"></select>
+      <select id="deckSelect" aria-label="选择章节"></select>
+
+      <div class="pager" aria-label="页码控制">
+        <button id="prevPage" type="button" title="上一页">‹</button>
+        <input id="pageInput" type="number" min="1" value="1" aria-label="当前页" />
+        <span class="total">/ <span id="totalPages">0</span></span>
+        <button id="nextPage" type="button" title="下一页">›</button>
+      </div>
+
+      <label class="switch" title="翻 PDF 时同步 Gemini；滚 Gemini 时同步 PDF">
+        <input id="autoSync" type="checkbox" />
+        <span>自动同步</span>
+      </label>
+
+      <button id="syncPage" class="primary" type="button">同步本页</button>
+      <button id="deepSyncPage" type="button" title="加载更早的 Gemini 历史并同步，可能比较慢">深度同步</button>
+      <button id="bindPage" type="button" title="把当前 PDF 页和 Gemini 当前位置绑定在一起">校准本页</button>
+      <button id="openGemini" type="button">打开 Gemini</button>
+
+      <div id="status" class="status neutral">准备中</div>
+    </header>
+
+    <main class="layout">
+      <nav id="pageRail" class="page-rail" aria-label="PDF 页"></nav>
+      <section id="viewer" class="viewer" aria-label="PDF 查看器">
+        <div id="pages" class="pages"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
